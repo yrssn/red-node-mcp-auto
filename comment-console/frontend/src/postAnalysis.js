@@ -3,7 +3,6 @@ export function decisionLabel(post) {
     matched: "匹配",
     unmatched: "不匹配",
     review: "待人工确认",
-    closed: "需求已结束",
   };
   return (
     labels[post?.decision_status] ||
@@ -12,7 +11,7 @@ export function decisionLabel(post) {
 }
 
 export function decisionType(post) {
-  if (["review", "closed"].includes(post?.decision_status)) return "warning";
+  if (post?.decision_status === "review") return "warning";
   if (post?.match == null) return "info";
   return post.match ? "success" : "info";
 }

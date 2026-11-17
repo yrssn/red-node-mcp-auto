@@ -104,7 +104,7 @@ func analyze(ctx context.Context, m Model, task Task, p Post, strategy Strategy,
 	if strategy.Mode == "fixed" {
 		d.Comment = strategy.FixedText
 	}
-	if d.Match && !p.DemandClosed {
+	if d.Match {
 		if err = validateText(d.Comment, strategy); err != nil {
 			return Decision{}, err
 		}

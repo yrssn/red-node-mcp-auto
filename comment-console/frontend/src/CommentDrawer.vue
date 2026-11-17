@@ -13,12 +13,6 @@
         <el-tag size="small" :type="decisionType(post)">{{
           decisionLabel(post)
         }}</el-tag>
-        <el-tag
-          v-if="post.demand_closed && post.decision_status !== 'closed'"
-          size="small"
-          type="warning"
-          >需求已结束</el-tag
-        >
         <span v-if="post.images && post.images.length" class="muted"
           >{{ post.images.length }} 张图片</span
         >
@@ -66,17 +60,7 @@
       </p>
       <div v-if="post.ocr_error" class="inline-error">{{ post.ocr_error }}</div>
       <div v-if="post.decision_status === 'review'" class="info-strip">
-        {{
-          post.demand_closed
-            ? "待人工确认：原需求已结束，请结合原帖上下文决定是否交流。"
-            : "待人工确认：请结合原帖、图片文字和判断理由确认需求。"
-        }}
-      </div>
-      <div
-        v-if="post.demand_closed || post.decision_status === 'closed'"
-        class="info-strip"
-      >
-        需求已结束，不代表仍在求助。可结合上下文人工交流，草稿仍须本人审核。
+        待人工确认：请结合原帖、图片文字和判断理由确认需求。
       </div>
       <el-divider></el-divider>
       <div class="panel-heading">
@@ -117,7 +101,7 @@
           ></emoji-textarea>
           <div class="field-hint">
             使用当前任务策略的字数上限。保存仅创建待审核草稿，不调用
-            AI、不发送评论。 已结束需求的草稿也须本人检查后再处理。
+            AI、不发送评论。
           </div>
           <div class="detail-actions">
             <el-button

@@ -76,9 +76,12 @@ func NewWithStore(s StateStore, initial State, backend Backend, demo bool) (*Eng
 		state.Tasks[i].Queued, state.Tasks[i].Phase, state.Tasks[i].Progress = false, "", ""
 	}
 	for i := range state.Posts {
-		if state.Posts[i].DecisionStatus == "closed" {
-			state.Posts[i].DemandClosed = true
+		p := &state.Posts[i]
+		// 清理旧规则产生的结果，保留独立的模型判断和 OCR 状态。
+		if p.DecisionStatus == "closed" || (p.DemandClosed && p.DecisionStatus == "review" && p.Match != nil && *p.Match) {
+			p.DecisionStatus, p.Reason, p.AnalysisMethod, p.Match = "", "", "", nil
 		}
+		p.DemandClosed = false
 	}
 	state.Settings.SendPaused = true
 	if err := s.Save(state); err != nil {
@@ -559,9 +562,6 @@ func (e *Engine) Regenerate(ctx context.Context, key, instruction string) error 
 	if t == nil || p == nil {
 		return fmt.Errorf("任务或帖子不存在")
 	}
-	if p.DemandClosed || closedDemand(*p) {
-		return fmt.Errorf("已结束需求仅支持手工编辑相关回复，不自动生成评论")
-	}
 	st := findStrategy(&s, t.StrategyID)
 	m := findModel(&s, t.ModelID)
 	if st == nil || !st.Enabled || m == nil {
@@ -796,7 +796,7 @@ func (e *Engine) process(ctx context.Context, task Task) error {
 			if old := findPost(s, p.ID); old != nil {
 				*old = p
 			}
-			if !d.Match || d.Status != "matched" || p.DemandClosed || strings.TrimSpace(d.Comment) == "" {
+			if !d.Match || d.Status != "matched" || strings.TrimSpace(d.Comment) == "" {
 				return nil
 			}
 			for _, c := range s.Comments {

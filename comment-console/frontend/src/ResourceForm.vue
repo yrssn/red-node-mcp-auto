@@ -182,12 +182,6 @@
             ></el-input>
           </el-form-item>
         </template>
-        <el-form-item label="保留已结束需求">
-          <el-switch v-model="form.include_closed"></el-switch>
-          <div class="field-hint">
-            已找到或已解决的帖子仍标记“需求已结束”，保留为待人工确认候选，仅人工处理。
-          </div>
-        </el-form-item>
         <div class="form-row">
           <el-form-item label="模型"
             ><el-select
@@ -341,7 +335,6 @@ export default {
           form.analysis_mode = "model";
           form.match_keywords = form.match_keywords || "";
           form.demand_keywords = form.demand_keywords || "";
-          form.include_closed = !!form.include_closed;
         }
         this.form = form;
       }

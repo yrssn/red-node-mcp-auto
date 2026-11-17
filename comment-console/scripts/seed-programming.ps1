@@ -43,11 +43,10 @@ foreach ($item in $preset.tasks) {
         sources = $item.sources
         model_id = ''
         analysis_mode = 'model'
-        include_closed = $false
         match_keywords = $item.keywords
         demand_keywords = '求助,急求,帮忙,帮我,找人,有没有人,有谁会,谁能,代做,开发需求,定制开发,报错,怎么办,怎么解决,不会做'
         strategy_id = $strategy[0].id
-        goal = "寻找$($item.topic)。优先原帖明确自述大学生/计算机相关背景且主动提出具体问题或合法开发需求的作者；不要从外貌或昵称推测学历年龄。排除服务商营销、无求助意图的经验分享、已结束需求、重复转载，以及论文代写、代考、冒名提交课程/毕业考核等作弊服务。意图不明时判为不匹配，不为触达而生成无关评论。"
+        goal = "寻找$($item.topic)。优先原帖明确自述大学生/计算机相关背景且主动提出具体问题或合法开发需求的作者；不要从外貌或昵称推测学历年龄。排除服务商营销、无求助意图的经验分享、重复转载，以及论文代写、代考、冒名提交课程/毕业考核等作弊服务。意图不明时判为不匹配，不为触达而生成无关评论。"
         exclude = $exclude
         publish_time = '一周内'
         note_type = '不限'

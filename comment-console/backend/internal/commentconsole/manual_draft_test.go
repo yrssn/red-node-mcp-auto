@@ -2,109 +2,10 @@ package commentconsole
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
 )
-
-func closedCandidateBackend(title, content string) fakeBackend {
-	return fakeBackend{
-		discoverFn: func(context.Context, Source, Task) ([]Post, error) {
-			return []Post{{FeedID: "closed-demand"}}, nil
-		},
-		detailFn: func(_ context.Context, p Post) (Post, error) {
-			p.Title, p.Content = title, content
-			p.AuthorUpdates = "已经找到了，谢谢大家。"
-			p.Images = []string{"https://sns-webpic.xhscdn.com/closed.png"}
-			return p, nil
-		},
-	}
-}
-
-func TestIncludeClosedKeepsRelevantCandidateWithoutAutomaticComment(t *testing.T) {
-	for _, mode := range []string{"rules", "hybrid", "model"} {
-		for _, strategyMode := range []string{"fixed", "ai"} {
-			t.Run(mode+"/"+strategyMode, func(t *testing.T) {
-				var modelCalls, sendCalls atomic.Int32
-				model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-					modelCalls.Add(1)
-					_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"match\":true,\"reason\":\"相关但已解决\",\"comment\":\"测试回复\"}"}}]}`))
-				}))
-				t.Cleanup(model.Close)
-				backend := closedCandidateBackend("JavaWeb需求", "急求代做，需要帮助。")
-				backend.sendFn = func(context.Context, Post, string) error { sendCalls.Add(1); return nil }
-				e, _ := screeningEngine(t, backend, OCRResult{Status: "success", Text: "JavaWeb 急求代做"})
-				if err := e.update(func(s *State) error {
-					s.Models = []Model{{ID: "closed-test-model", Name: "不应调用的模型", Model: "test", BaseURL: model.URL}}
-					task := &s.Tasks[0]
-					task.ModelID, task.AnalysisMode = s.Models[0].ID, mode
-					task.IncludeClosed, task.AutoSend = true, true
-					s.Settings.SendPaused = false
-					s.Strategies[0].Mode, s.Strategies[0].FixedText = strategyMode, "这条固定回复不应自动生成。"
-					return nil
-				}); err != nil {
-					t.Fatal(err)
-				}
-				runProcess(t, e)
-				e.sendNext()
-				s := e.Snapshot()
-				if len(s.Posts) != 1 {
-					t.Fatalf("结束需求候选未保留：%d", len(s.Posts))
-				}
-				p := s.Posts[0]
-				if p.Match == nil || !*p.Match || p.DecisionStatus != "review" || !p.DemandClosed {
-					t.Fatalf("相关结束需求应保留为人工候选：%+v", p)
-				}
-				if !strings.Contains(p.Reason, "结束") && !strings.Contains(p.Reason, "已找到") && !strings.Contains(p.Reason, "已解决") {
-					t.Fatalf("候选理由丢失需求已结束的上下文：%s", p.Reason)
-				}
-				if modelCalls.Load() != 1 || sendCalls.Load() != 0 || len(s.Comments) != 0 {
-					t.Fatalf("结束需求触发了模型/自动回复：models=%d sends=%d comments=%d", modelCalls.Load(), sendCalls.Load(), len(s.Comments))
-				}
-			})
-		}
-	}
-}
-
-func TestIncludeClosedDefaultAndNegativeFilters(t *testing.T) {
-	tests := []struct {
-		name    string
-		include bool
-		title   string
-		content string
-		ocr     OCRResult
-		exclude string
-		status  string
-	}{
-		{"默认仍关闭", false, "JavaWeb需求", "急求代做", OCRResult{Status: "success"}, "", "closed"},
-		{"OCR失败不当匹配", true, "JavaWeb需求", "急求代做", OCRResult{Status: "failed", Error: "本地OCR不可用"}, "", "review"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			e, _ := screeningEngine(t, closedCandidateBackend(tt.title, tt.content), tt.ocr)
-			if err := e.update(func(s *State) error {
-				s.Tasks[0].IncludeClosed = tt.include
-				s.Tasks[0].Exclude = tt.exclude
-				s.Tasks[0].AutoSend = true
-				s.Strategies[0].Mode, s.Strategies[0].FixedText = "fixed", "不应生成"
-				return nil
-			}); err != nil {
-				t.Fatal(err)
-			}
-			runProcess(t, e)
-			s := e.Snapshot()
-			if len(s.Posts) != 1 {
-				t.Fatal("未保留候选记录")
-			}
-			p := s.Posts[0]
-			if p.Match == nil || *p.Match || p.DecisionStatus != tt.status || !p.DemandClosed || len(s.Comments) != 0 {
-				t.Fatalf("结束需求的负向筛选失效：post=%+v comments=%d", p, len(s.Comments))
-			}
-		})
-	}
-}
 
 func manualClosedEngine(t *testing.T) (*Engine, *atomic.Int32, *atomic.Int32) {
 	t.Helper()
@@ -127,7 +28,7 @@ func manualClosedEngine(t *testing.T) (*Engine, *atomic.Int32, *atomic.Int32) {
 	if err := e.update(func(s *State) error {
 		s.Settings.SendPaused = false
 		task := &s.Tasks[0]
-		task.AccountID, task.AutoSend, task.IncludeClosed = "demo-account", true, true
+		task.AccountID, task.AutoSend = "demo-account", true
 		s.Strategies[0].MaxLength = 20
 		s.Strategies[0].Forbidden = "禁用词"
 		matched := true
@@ -166,8 +67,8 @@ func TestCreateManualDraftForClosedCandidateRequiresExplicitApproval(t *testing.
 	}
 }
 
-func TestCreateManualDraftAcceptsAnalyzedMatchedAndReviewCandidates(t *testing.T) {
-	for _, status := range []string{"matched", "review"} {
+func TestCreateManualDraftAcceptsAnalyzedCandidates(t *testing.T) {
+	for _, status := range []string{"matched", "review", "unmatched"} {
 		t.Run(status, func(t *testing.T) {
 			e, _, siteWrites := manualClosedEngine(t)
 			if err := e.update(func(s *State) error {
@@ -196,12 +97,6 @@ func TestCreateManualDraftRejectsInvalidCandidateOrText(t *testing.T) {
 		change func(*Engine, *State)
 	}{
 		{"尚未分析", "人工回复", func(_ *Engine, s *State) { s.Posts[0].Match = nil; s.Posts[0].DecisionStatus = "" }},
-		{"明确不匹配", "人工回复", func(_ *Engine, s *State) {
-			no := false
-			s.Posts[0].Match = &no
-			s.Posts[0].DecisionStatus = "unmatched"
-		}},
-		{"未开启结束需求", "人工回复", func(_ *Engine, s *State) { s.Tasks[0].IncludeClosed = false; s.Posts[0].DecisionStatus = "closed" }},
 		{"空内容", "  ", nil},
 		{"超长内容", strings.Repeat("字", 21), nil},
 		{"禁用词", "包含禁用词", nil},

@@ -49,28 +49,28 @@ type Task struct {
 	AnalysisMode   string   `json:"analysis_mode"`
 	MatchKeywords  string   `json:"match_keywords"`
 	DemandKeywords string   `json:"demand_keywords"`
-	IncludeClosed  bool     `json:"include_closed"`
-	Exclude        string   `json:"exclude"`
-	PublishTime    string   `json:"publish_time"`
-	NoteType       string   `json:"note_type"`
-	Interval       int      `json:"interval"`
-	Limit          int      `json:"limit"`
-	SendLimit      int      `json:"send_limit"`
-	SendCount      int      `json:"send_count"`
-	AutoSend       bool     `json:"auto_send"`
-	Scheduled      bool     `json:"scheduled"`
-	Paused         bool     `json:"paused"`
-	CollectPaused  bool     `json:"collect_paused"`
-	AnalyzePaused  bool     `json:"analyze_paused"`
-	SendPaused     bool     `json:"send_paused"`
-	NextRun        int64    `json:"next_run"`
-	LastRun        int64    `json:"last_run"`
-	LastError      string   `json:"last_error"`
-	AccountID      string   `json:"account_id"`
-	Running        bool     `json:"running"`
-	Queued         bool     `json:"queued"`
-	Phase          string   `json:"phase"`
-	Progress       string   `json:"progress"`
+
+	Exclude       string `json:"exclude"`
+	PublishTime   string `json:"publish_time"`
+	NoteType      string `json:"note_type"`
+	Interval      int    `json:"interval"`
+	Limit         int    `json:"limit"`
+	SendLimit     int    `json:"send_limit"`
+	SendCount     int    `json:"send_count"`
+	AutoSend      bool   `json:"auto_send"`
+	Scheduled     bool   `json:"scheduled"`
+	Paused        bool   `json:"paused"`
+	CollectPaused bool   `json:"collect_paused"`
+	AnalyzePaused bool   `json:"analyze_paused"`
+	SendPaused    bool   `json:"send_paused"`
+	NextRun       int64  `json:"next_run"`
+	LastRun       int64  `json:"last_run"`
+	LastError     string `json:"last_error"`
+	AccountID     string `json:"account_id"`
+	Running       bool   `json:"running"`
+	Queued        bool   `json:"queued"`
+	Phase         string `json:"phase"`
+	Progress      string `json:"progress"`
 }
 
 type Post struct {
@@ -87,7 +87,7 @@ type Post struct {
 	AuthorUpdates  string   `json:"author_updates"`
 	AnalysisMethod string   `json:"analysis_method"`
 	DecisionStatus string   `json:"decision_status"`
-	DemandClosed   bool     `json:"demand_closed"`
+	DemandClosed   bool     `json:"demand_closed,omitempty"`
 	Author         string   `json:"author"`
 	URL            string   `json:"url"`
 	Source         string   `json:"source"`

@@ -3,42 +3,8 @@ package commentconsole
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
-	"unicode"
 )
-
-func normalized(value string) string {
-	return strings.Map(func(r rune) rune {
-		if unicode.IsSpace(r) || unicode.IsPunct(r) {
-			return -1
-		}
-		return unicode.ToLower(r)
-	}, value)
-}
-
-func containsTerm(text string, words []string) string {
-	text = normalized(text)
-	for _, word := range words {
-		if word = strings.TrimSpace(word); normalized(word) != "" && strings.Contains(text, normalized(word)) {
-			return word
-		}
-	}
-	return ""
-}
-
-// 作者补充单独判断，不把其他人的接单留言当作发帖需求。
-func closedDemand(p Post) bool {
-	for _, line := range strings.FieldsFunc(p.AuthorUpdates+"\n"+p.Title+"\n"+p.Content+"\n"+p.OCRText, func(r rune) bool { return r == '\n' || r == '。' }) {
-		if containsTerm(line, []string{"没解决", "未解决", "没有解决", "没找到", "未找到", "尚未找到"}) != "" {
-			continue
-		}
-		if containsTerm(line, []string{"找到了", "已找到", "已解决", "已经解决", "帮我解决啦", "已经帮我解决", "不需要了", "不用了", "需求结束", "已完成", "已结束"}) != "" {
-			return true
-		}
-	}
-	return false
-}
 
 func (e *Engine) ocrClient() OCRClient {
 	e.mu.Lock()
@@ -77,15 +43,12 @@ func (e *Engine) readPostDecision(ctx context.Context, task Task, old Post, stra
 	if err = ctx.Err(); err != nil {
 		return p, Decision{}, err
 	}
-	p.DemandClosed = closedDemand(p)
 	e.setTaskProgress(task.ID, "analyze", "分析帖子内容，"+label)
 	var d Decision
 	p.AnalysisMethod = ""
 	switch {
 	case len(p.Images) > 0 && p.OCRStatus != "success" && p.OCRStatus != "empty":
 		d = Decision{Status: "review", Reason: "图片文字尚未完整识别；请检查本地 OCR 后重新分析，或人工核对。"}
-	case p.DemandClosed && !task.IncludeClosed:
-		d = Decision{Status: "closed", Reason: "原帖或原作者补充显示需求已结束。"}
 	default:
 		if model == nil {
 			return p, d, fmt.Errorf("请先为任务配置有效模型")
@@ -98,10 +61,6 @@ func (e *Engine) readPostDecision(ctx context.Context, task Task, old Post, stra
 		d.Status = "unmatched"
 		if d.Match {
 			d.Status = "matched"
-			if p.DemandClosed {
-				d.Status = "review"
-				d.Comment = ""
-			}
 		}
 	}
 	p.DecisionStatus, p.Reason = d.Status, d.Reason

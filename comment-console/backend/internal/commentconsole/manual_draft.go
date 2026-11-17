@@ -7,18 +7,12 @@ import (
 	"time"
 )
 
-func manualDraftAllowed(p Post, t Task) error {
+func manualDraftAllowed(p Post) error {
 	if strings.TrimSpace(p.FeedID) == "" {
 		return fmt.Errorf("帖子标识不可用，请先重新获取详情")
 	}
 	if p.Match == nil {
 		return fmt.Errorf("请先分析帖子，再保存人工草稿")
-	}
-	if (p.DemandClosed || closedDemand(p)) && !t.IncludeClosed {
-		return fmt.Errorf("请先在任务中开启保留已结束需求，并重新分析帖子")
-	}
-	if p.DecisionStatus == "closed" || p.DecisionStatus == "unmatched" || (!*p.Match && p.DecisionStatus != "review") {
-		return fmt.Errorf("请先确认帖子相关性并重新分析，再保存草稿")
 	}
 	return nil
 }
@@ -42,7 +36,7 @@ func (e *Engine) CreateManualDraft(ctx context.Context, postID, text string) err
 		e.mu.Unlock()
 		return fmt.Errorf("任务不存在")
 	}
-	if err := manualDraftAllowed(*p, *t); err != nil {
+	if err := manualDraftAllowed(*p); err != nil {
 		e.mu.Unlock()
 		return err
 	}
@@ -91,7 +85,7 @@ func (e *Engine) CreateManualDraft(ctx context.Context, postID, text string) err
 		if post == nil || task == nil {
 			return fmt.Errorf("帖子或任务已变更，请刷新后重试")
 		}
-		if err := manualDraftAllowed(*post, *task); err != nil {
+		if err := manualDraftAllowed(*post); err != nil {
 			return err
 		}
 		if task.AccountID != "" && task.AccountID != account.ID {

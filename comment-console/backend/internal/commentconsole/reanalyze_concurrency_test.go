@@ -39,6 +39,7 @@ func reanalyzeConcurrencyEngine(t *testing.T, withComment bool) (*Engine, *reana
 		},
 		sendFn: func(context.Context, Post, string) error { sends.Add(1); return nil },
 	}, OCRResult{})
+	e.demo = true
 	ocr := &reanalyzeBlockingOCR{entered: make(chan struct{}), release: make(chan struct{})}
 	e.ocr = ocr
 	t.Cleanup(ocr.unblock)
@@ -86,8 +87,8 @@ func TestReanalyzeBlocksApprovingFailedComment(t *testing.T) {
 		t.Fatal("释放 OCR 后重新分析未完成")
 	}
 	snapshot := e.Snapshot()
-	if snapshot.Posts[0].DecisionStatus != "closed" || sends.Load() != 0 || snapshot.Comments[0].Status != "failed" {
-		t.Fatal("已结束需求的重新分析结果或旧评论状态不正确")
+	if snapshot.Posts[0].DecisionStatus != "matched" || sends.Load() != 0 || snapshot.Comments[0].Status != "failed" {
+		t.Fatal("作者补充含“找到了”时的重新分析结果或旧评论状态不正确")
 	}
 }
 

@@ -438,18 +438,38 @@
                 ><el-option label="匹配" value="yes"></el-option
                 ><el-option label="不匹配" value="no"></el-option
                 ><el-option label="待人工确认" value="review"></el-option
-                ><el-option label="需求已结束" value="closed"></el-option
                 ><el-option
                   label="待分析"
                   value="pending"
                 ></el-option></el-select
               ><span class="muted">{{ filteredPosts.length }} 条帖子</span>
             </div>
+            <div v-if="selectedPosts.length || postBatchProgress" class="bulk-bar">
+              {{ postBatchProgress || "已选择 " + selectedPosts.length + " 条" }}
+              <el-button
+                size="mini"
+                :disabled="!!bulkBusy || !!reanalyzing"
+                @click="reanalyzeSelected"
+                >批量分析</el-button
+              >
+              <el-button
+                size="mini"
+                type="danger"
+                plain
+                :disabled="!!bulkBusy || !!reanalyzing"
+                @click="deleteSelected('posts')"
+                >批量删除</el-button
+              >
+            </div>
             <el-table
+              ref="postsTable"
               :data="paged(filteredPosts)"
+              row-key="id"
+              @selection-change="selectedPosts = $event"
               @row-click="showPost"
               class="clickable"
-              ><el-table-column label="帖子" min-width="250"
+              ><el-table-column type="selection" width="44" reserve-selection />
+              <el-table-column label="帖子" min-width="250"
                 ><template slot-scope="{ row }"
                   ><div class="post-title">
                     {{ row.title || "图片帖（无文字标题）" }}
@@ -469,13 +489,7 @@
                 ><template slot-scope="{ row }"
                   ><el-tag size="small" :type="decisionType(row)">{{
                     decisionLabel(row)
-                  }}</el-tag>
-                  <el-tag
-                    v-if="row.demand_closed && row.decision_status !== 'closed'"
-                    size="mini"
-                    type="warning"
-                    >需求已结束</el-tag
-                  ></template
+                  }}</el-tag></template
                 ></el-table-column
               ><el-table-column label="内容分析 / OCR" min-width="155">
                 <template slot-scope="{ row }">
@@ -507,6 +521,7 @@
                   <el-button
                     type="text"
                     :loading="reanalyzing === row.id"
+                    :disabled="!!bulkBusy"
                     @click.stop="reanalyze(row)"
                     >重新分析</el-button
                   >
@@ -558,7 +573,7 @@
               v-model="commentTab"
               @tab-click="
                 pageNumber = 1;
-                selected = [];
+                clearTableSelection();
               "
               ><el-tab-pane
                 v-for="tab in commentTabs"
@@ -595,11 +610,14 @@
             </div>
             <div v-if="selected.length" class="bulk-bar">
               已选择 {{ selected.length }} 条
-              <el-button size="mini" @click="bulk('approve')"
+              <el-button size="mini" :disabled="!!bulkBusy" @click="bulk('approve')"
                 >批量通过</el-button
-              ><el-button size="mini" @click="bulk('skip')">批量跳过</el-button
-              ><el-button size="mini" @click="bulk('cancel')"
+              ><el-button size="mini" :disabled="!!bulkBusy" @click="bulk('skip')">批量跳过</el-button
+              ><el-button size="mini" :disabled="!!bulkBusy" @click="bulk('cancel')"
                 >批量取消</el-button
+              >
+              <el-button size="mini" type="danger" plain :disabled="!!bulkBusy" @click="deleteSelected('comments')"
+                >批量删除</el-button
               >
             </div>
             <el-table
@@ -610,6 +628,7 @@
               ><el-table-column
                 type="selection"
                 width="44"
+                reserve-selection
                 :selectable="
                   (row) =>
                     !['sent', 'sending', 'uncertain'].includes(row.status)
@@ -1098,6 +1117,9 @@ export default {
       pageNumber: 1,
       commentTab: "review",
       selected: [],
+      selectedPosts: [],
+      postBatchProgress: "",
+      bulkBusy: false,
       loading: false,
       saving: false,
       connectionError: "",
@@ -1374,9 +1396,7 @@ export default {
               )
             ) &&
             (!this.matchFilter ||
-              (this.matchFilter === "closed"
-                ? p.demand_closed || p.decision_status === "closed"
-                : this.matchFilter === "review"
+              (this.matchFilter === "review"
                 ? p.decision_status === this.matchFilter
                 : this.matchFilter === "pending"
                 ? p.match == null && !p.decision_status
@@ -1417,15 +1437,23 @@ export default {
   watch: {
     search() {
       this.pageNumber = 1;
+      this.clearTableSelection();
     },
     taskFilter() {
       this.pageNumber = 1;
+      this.clearTableSelection();
     },
     matchFilter() {
       this.pageNumber = 1;
+      this.clearTableSelection();
+    },
+    pageNumber() {
+      this.clearTableSelection();
     },
   },
   mounted() {
+    this.restorePage();
+    window.addEventListener("hashchange", this.restorePage);
     this.load();
     this.timer = setInterval(() => {
       if (!this.loading && !this.saving && !document.hidden) this.load(true);
@@ -1442,6 +1470,7 @@ export default {
     document.addEventListener("visibilitychange", this.onVisibilityChange);
   },
   beforeDestroy() {
+    window.removeEventListener("hashchange", this.restorePage);
     clearInterval(this.timer);
     clearInterval(this.accountTimer);
     this.accountRequestVersion++;
@@ -1512,10 +1541,11 @@ export default {
         const data = await this.api("/state");
         this.state = data;
         this.connectionError = "";
+        if (this.page !== "settings" || !this.lastRefresh)
+          this.settingsForm = copy(data.settings);
         this.lastRefresh = new Date().toLocaleTimeString("zh-CN", {
           hour12: false,
         });
-        if (this.page !== "settings") this.settingsForm = copy(data.settings);
         if (data.demo) {
           this.account = {
             id: "demo-account",
@@ -1556,8 +1586,16 @@ export default {
         return false;
       }
     },
-    navigate(key) {
+    restorePage() {
+      const key = window.location.hash.slice(1);
+      const page = this.menus.some((menu) => menu.key === key) ? key : "overview";
+      if (page !== this.page) this.navigate(page, false);
+    },
+    navigate(key, updateURL = true) {
+      this.clearTableSelection();
       this.page = key;
+      if (updateURL && window.location.hash !== "#" + key)
+        window.location.hash = key;
       this.search = "";
       this.taskSearch = "";
       this.taskFilter = "";
@@ -1733,7 +1771,6 @@ export default {
           analysis_mode: "model",
           match_keywords: "",
           demand_keywords: "",
-          include_closed: false,
           strategy_id: this.state.strategies.find((s) => s.enabled)?.id || "",
           goal: "",
           exclude: "",
@@ -1763,7 +1800,7 @@ export default {
       this.saving = false;
     },
     async reanalyze(post) {
-      if (this.reanalyzing) return;
+      if (this.reanalyzing || this.bulkBusy) return;
       this.reanalyzing = post.id;
       try {
         if (await this.mutate("/posts/" + post.id + "/reanalyze")) {
@@ -1773,6 +1810,79 @@ export default {
         }
       } finally {
         this.reanalyzing = "";
+      }
+    },
+    clearTableSelection() {
+      this.$refs.postsTable?.clearSelection();
+      this.$refs.commentsTable?.clearSelection();
+      this.selectedPosts = [];
+      this.selected = [];
+    },
+    async reanalyzeSelected() {
+      if (this.bulkBusy || this.reanalyzing || !this.selectedPosts.length) return;
+      const posts = [...this.selectedPosts];
+      let done = 0;
+      const errors = [];
+      this.bulkBusy = true;
+      try {
+        for (const [index, post] of posts.entries()) {
+          this.postBatchProgress = "正在分析第 " + (index + 1) + " / " + posts.length + " 条";
+          this.reanalyzing = post.id;
+          try {
+            await this.api("/posts/" + encodeURIComponent(post.id) + "/reanalyze", "POST");
+            done++;
+          } catch (e) {
+            errors.push(e.message);
+          }
+        }
+        await this.load(true);
+        this.clearTableSelection();
+        if (errors.length) {
+          this.$message.warning("已处理 " + done + " 条，失败 " + errors.length + " 条：" + errors[0]);
+        } else {
+          this.$message.success("已处理 " + done + " 条候选帖子，识别结果见列表");
+        }
+      } finally {
+        this.bulkBusy = false;
+        this.reanalyzing = "";
+        this.postBatchProgress = "";
+      }
+    },
+    async deleteSelected(kind) {
+      if (this.bulkBusy || this.reanalyzing) return;
+      const isPosts = kind === "posts";
+      const ids = (isPosts ? this.selectedPosts : this.selected).map((row) => row.id);
+      if (!ids.length) return;
+      const name = isPosts ? "候选帖子" : "评论记录";
+      const note = isPosts ? "有关联评论的帖子会保留。" : "已发送、发送中和待确认的记录会保留。";
+      this.bulkBusy = true;
+      try {
+        try {
+          await this.$confirm("从工作台删除所选 " + ids.length + " 条" + name + "？" + note, "批量删除", { type: "warning" });
+        } catch {
+          return;
+        }
+        const { deleted, protected: retained } = await this.api("/" + kind + "/bulk-delete", "POST", { ids });
+        await this.load(true);
+        if (
+          this.detailVisible &&
+          (isPosts
+            ? this.detailPost && !this.state.posts.some((p) => p.id === this.detailPost.id)
+            : this.detailComment && !this.state.comments.some((c) => c.id === this.detailComment.id))
+        ) this.detailVisible = false;
+        const total = isPosts ? this.filteredPosts.length : this.filteredComments.length;
+        this.pageNumber = Math.min(this.pageNumber, Math.max(1, Math.ceil(total / 15)));
+        this.clearTableSelection();
+        const missing = ids.length - deleted - retained;
+        const message = "已删除 " + deleted + " 条" +
+          (retained ? "，保留 " + retained + " 条受保护记录" : "") +
+          (missing > 0 ? "，" + missing + " 条已不存在" : "");
+        if (retained || missing > 0) this.$message.warning(message);
+        else this.$message.success(message);
+      } catch (e) {
+        this.$message.error(e.message);
+      } finally {
+        this.bulkBusy = false;
       }
     },
     async saveDraft(text) {
@@ -1888,24 +1998,30 @@ export default {
       }
     },
     async bulk(action) {
-      let ok = 0;
-      const errors = [];
-      for (const c of [...this.selected]) {
-        try {
-          await this.api("/comments/" + c.id + "/" + action, "POST", {});
-          ok++;
-        } catch (e) {
-          errors.push(e.message);
+      if (this.bulkBusy || !this.selected.length) return;
+      this.bulkBusy = true;
+      try {
+        let ok = 0;
+        const errors = [];
+        for (const c of [...this.selected]) {
+          try {
+            await this.api("/comments/" + c.id + "/" + action, "POST", {});
+            ok++;
+          } catch (e) {
+            errors.push(e.message);
+          }
         }
+        await this.load(true);
+        this.selected = [];
+        this.$refs.commentsTable?.clearSelection();
+        if (errors.length)
+          this.$message.warning(
+            "完成 " + ok + " 条，未处理 " + errors.length + " 条：" + errors[0]
+          );
+        else this.$message.success("已处理 " + ok + " 条");
+      } finally {
+        this.bulkBusy = false;
       }
-      await this.load(true);
-      this.selected = [];
-      this.$refs.commentsTable?.clearSelection();
-      if (errors.length)
-        this.$message.warning(
-          "完成 " + ok + " 条，未处理 " + errors.length + " 条：" + errors[0]
-        );
-      else this.$message.success("已处理 " + ok + " 条");
     },
     async toggleQueue() {
       const next = {

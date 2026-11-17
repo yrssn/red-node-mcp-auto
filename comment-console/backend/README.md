@@ -12,8 +12,10 @@ Windows PowerShell 中从源码启动：
 ```powershell
 $env:GOARCH = 'amd64'
 $env:CGO_ENABLED = '0'
-go run ./cmd/server -port 127.0.0.1:18061
+go run ./cmd/server -local-ocr -port 127.0.0.1:18061
 ```
+
+`-local-ocr` 从已安装的 `.runtime/ocr` 环境启动 RapidOCR，等待就绪后再开放工作台。已有本地 RapidOCR 时会直接复用。按 Ctrl+C 停止后端时，后端也会停止它自己启动的 OCR。OCR 首次安装见 [OCR 说明](../ocr/README.md)。
 
 想观察浏览器操作时，在源码启动命令后追加 `-headless=false`，或使用下面的一键脚本并追加 `-ShowBrowser`。GoLand 的 **Comment Console (amd64)** 配置已启用可见浏览器。切换显示模式需要先停止旧服务。
 

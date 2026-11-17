@@ -1,9 +1,12 @@
 package server
 
 import (
+	"context"
 	"flag"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/sirupsen/logrus"
 	"xhs-comment-console/internal/browser"
@@ -22,6 +25,7 @@ func Run() {
 		port       string
 		token      string
 		demo       bool
+		localOCR   bool
 		configPath string
 		webDir     string
 	)
@@ -29,6 +33,7 @@ func Run() {
 	flag.StringVar(&port, "port", ":18060", "端口")
 	flag.StringVar(&token, "token", "", "鉴权 Token，留空则读取 AUTH_TOKEN")
 	flag.BoolVar(&demo, "demo", false, "控制台演示模式，使用 MySQL，不连接小红书和外部模型")
+	flag.BoolVar(&localOCR, "local-ocr", false, "启动或复用本机 RapidOCR")
 	flag.StringVar(&configPath, "config", "config/mysql.json", "MySQL 本地配置文件路径")
 	flag.StringVar(&webDir, "web-dir", "../frontend/dist", "前端构建目录")
 	flag.Parse()
@@ -86,6 +91,17 @@ func Run() {
 		}
 	}
 	appServer.console = engine
+	stopOCR := func() {}
+	if localOCR && !demo {
+		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		stopOCR, err = startLocalOCR(ctx)
+		cancel()
+		if err != nil {
+			_ = engine.Close()
+			logrus.Fatal(err)
+		}
+	}
+	defer stopOCR()
 	displayAddress := port
 	if strings.HasPrefix(displayAddress, ":") {
 		displayAddress = "localhost" + displayAddress
@@ -93,6 +109,7 @@ func Run() {
 	logrus.Infof("评论管理控制台: http://%s/console/ (v%s)", displayAddress, cc.Version)
 	if err := appServer.Start(port); err != nil {
 		_ = engine.Close()
+		stopOCR()
 		logrus.Fatalf("failed to run server: %v", err)
 	}
 }

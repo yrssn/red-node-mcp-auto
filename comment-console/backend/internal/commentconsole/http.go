@@ -21,6 +21,24 @@ func result(c *gin.Context, err error) {
 	c.JSON(200, gin.H{"ok": true})
 }
 
+func bulkDeleteHandler(remove func([]string) (int, int, error)) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var body struct {
+			IDs []string `json:"ids"`
+		}
+		if err := c.ShouldBindJSON(&body); err != nil {
+			result(c, err)
+			return
+		}
+		deleted, protected, err := remove(body.IDs)
+		if err != nil {
+			result(c, err)
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"deleted": deleted, "protected": protected})
+	}
+}
+
 // Register 由入口层统一添加鉴权。
 func (e *Engine) Register(g *gin.RouterGroup) {
 	g.Use(func(c *gin.Context) {
@@ -44,6 +62,8 @@ func (e *Engine) Register(g *gin.RouterGroup) {
 		c.JSON(200, gin.H{"enabled": !strings.EqualFold(os.Getenv("OCR_ENABLED"), "false"), "available": err == nil, "engine": "RapidOCR / ONNX Runtime（本地 CPU）", "error": message})
 	})
 	g.POST("/posts/:id/reanalyze", func(c *gin.Context) { result(c, e.ReanalyzePost(c.Request.Context(), c.Param("id"))) })
+	g.POST("/posts/bulk-delete", bulkDeleteHandler(e.DeletePosts))
+	g.POST("/comments/bulk-delete", bulkDeleteHandler(e.DeleteComments))
 	g.POST("/posts/:id/draft", func(c *gin.Context) {
 		var body struct {
 			Text string `json:"text"`
