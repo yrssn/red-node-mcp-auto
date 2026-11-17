@@ -1,0 +1,234 @@
+{
+  "name": "计算机技术需求（人工审核）",
+  "strategies": [
+    {
+      "name": "编程求助 · 具体建议与轻表情",
+      "enabled": true,
+      "mode": "ai",
+      "prompt": "只在原帖明确邀请技术交流且你能给出相关建议时回复。根据原帖提供一条具体、可核实的排查思路，或询问一个必要的技术问题；信息不足就问清楚，不泛泛夸赞。可以带0至1个🙂、😊、👍、💻、🤝文字表情，不只发纯表情。不自称学生、同学、已做过同款项目或有不存在的经验；不承诺接单、价格、效果，不留联系方式、不引导私信或站外交易，不代写论文、代考或提供作弊服务。涉及商业需求时保持经营身份透明，先由用户核实资质和平台准入。结尾注明‘（AI辅助建议，请核实）’。最多100字，由人工逐条审核后决定是否回复。",
+      "fixed_text": "",
+      "max_length": 100,
+      "forbidden": "加微信,加V,加v,私我,私信我,包过,保过,论文代写,毕业设计代做,代考,代答辩,代提交,联系我,http://,https://,vx,V信"
+    },
+    {
+      "name": "项目需求 · 先澄清再交流",
+      "enabled": true,
+      "mode": "ai",
+      "prompt": "仅面向原帖明确寻求合法项目开发、功能调试或需求梳理帮助的情况。结合技术栈，只问一个对推进需求有帮助的问题，例如当前报错、功能范围、已有代码或运行环境。可搭配0至1个💻、🙂或🤝，禁止无关纯表情。不要把公开分享误判为合作邀请，不虚构身份或案例、不承诺报价或结果，不诱导私信、关注、添加联系方式或站外交易。排除论文代写、代考、冒名提交等服务。经营身份、所需资质和准入须由用户实际核实；本条仅作为人工审核候选。结尾注明‘（AI辅助建议，请核实）’，最多100字。",
+      "fixed_text": "",
+      "max_length": 100,
+      "forbidden": "加微信,加V,加v,私我,私信我,包过,保过,论文代写,毕业设计代做,代考,代答辩,代提交,联系我,http://,https://,vx,V信"
+    },
+    {
+      "name": "单个文字表情 · 手动备用（默认停用）",
+      "enabled": false,
+      "mode": "fixed",
+      "prompt": "只供手动选择的文字表情示例；请先判断原帖语境和对方是否愿意互动，不用于重复刷屏或自动营销。",
+      "fixed_text": "🙂",
+      "max_length": 10,
+      "forbidden": ""
+    }
+  ],
+  "materials": [
+    {
+      "name": "Java · 排错提问",
+      "category": "Java",
+      "content": "先看异常类型和最内层 caused by，再核对 JDK 版本、依赖版本、复现步骤。候选表达：报错最内层的 caused by 是什么？可以先据此区分依赖和业务代码的问题🙂（AI辅助建议，请核实）。只在原帖相关时使用，不虚构诊断。",
+      "enabled": true
+    },
+    {
+      "name": "Spring Boot · 接口与配置",
+      "category": "Spring Boot",
+      "content": "排查接口可先区分启动失败、路由404、权限401/403和业务500，检查实际版本、请求方法、路径和日志。候选表达：是启动阶段报错，还是调用接口才出现？这会影响排查方向💻（AI辅助建议，请核实）。",
+      "enabled": true
+    },
+    {
+      "name": "PHP · 环境与依赖",
+      "category": "PHP",
+      "content": "询问 PHP/框架版本、Composer依赖、必要扩展和Web服务器日志。Laravel/ThinkPHP的行为依实际版本判断。候选表达：目前用的是 Laravel 还是 ThinkPHP？先确认框架和PHP版本会更好定位🙂（AI辅助建议，请核实）。",
+      "enabled": true
+    },
+    {
+      "name": "Vue · 接口联调",
+      "category": "前端",
+      "content": "先查看浏览器 Network 的请求地址、状态码、响应结构，再分辨代理、跨域、鉴权和字段映射。不要让对方公开token、密码或完整私有项目。候选表达：Network里接口返回的状态码是什么？可以先排除请求地址和鉴权问题💻（AI辅助建议，请核实）。",
+      "enabled": true
+    },
+    {
+      "name": "Python · 依赖与脚本",
+      "category": "Python",
+      "content": "了解Python版本、虚拟环境、完整异常类型与最小复现。仅处理合法脚本、数据分析和学习交流；不提供越权采集或绕过限制。候选表达：脚本是在本地还是服务器运行？先核对Python版本与依赖环境🙂（AI辅助建议，请核实）。",
+      "enabled": true
+    },
+    {
+      "name": "MySQL · 查询与连接",
+      "category": "数据库",
+      "content": "区分连接失败、权限问题、字符集问题和慢查询。确认版本、脱敏SQL、索引及执行计划，不索要生产密码。候选表达：是连接报错还是查询慢？两类问题的排查入口不同💻（AI辅助建议，请核实）。",
+      "enabled": true
+    },
+    {
+      "name": "真实项目 · 需求澄清",
+      "category": "需求沟通",
+      "content": "仅在对方主动提出合法开发需求时讨论：功能清单、现有代码、技术栈、运行环境与验收标准。不将课程或毕业考核的冒名交付包装成开发服务，不自称有案例或承诺结果。商业合作前应透明披露经营身份，核实平台行业准入与资质，使用平台认可的渠道。",
+      "enabled": true
+    },
+    {
+      "name": "技术交流 · 轻表情",
+      "category": "文字表情",
+      "content": "文字表情可以作为相关正文的补充：🙂 表示友好；👍 表示认可；💻 表示技术语境；🤝 表示交流。每条建议0至1个，避免相同内容重复刷屏；这不是平台公布的安全阈值。暂不支持图片/GIF或小红书原生表情包。",
+      "enabled": true
+    },
+    {
+      "name": "单个文字表情 · 手动备用",
+      "category": "文字表情",
+      "content": "🙂",
+      "enabled": false
+    }
+  ],
+  "tasks": [
+    {
+      "name": "Java · 大学生技术求助",
+      "strategy": "编程求助 · 具体建议与轻表情",
+      "topic": "Java 编程调试、接口开发、依赖和环境问题",
+      "sources": [
+        {
+          "kind": "keyword",
+          "value": "大学生 Java 求助"
+        },
+        {
+          "kind": "keyword",
+          "value": "Java 项目 报错 求助"
+        },
+        {
+          "kind": "tag",
+          "value": "Java学习"
+        }
+      ],
+      "keywords": "java,javaweb,JDK,JVM"
+    },
+    {
+      "name": "Spring Boot · 开发与调试需求",
+      "strategy": "编程求助 · 具体建议与轻表情",
+      "topic": "Spring Boot、Spring、SSM、MyBatis 的功能开发与错误排查",
+      "sources": [
+        {
+          "kind": "keyword",
+          "value": "SpringBoot 求助"
+        },
+        {
+          "kind": "keyword",
+          "value": "Spring Boot 项目开发 需求"
+        },
+        {
+          "kind": "tag",
+          "value": "SpringBoot"
+        }
+      ],
+      "keywords": "springboot,spring boot,spring,ssm,mybatis"
+    },
+    {
+      "name": "PHP · Laravel / ThinkPHP 需求",
+      "strategy": "项目需求 · 先澄清再交流",
+      "topic": "PHP、Laravel、ThinkPHP 的合法系统开发、接口维护与调试需求",
+      "sources": [
+        {
+          "kind": "keyword",
+          "value": "PHP 开发 求助"
+        },
+        {
+          "kind": "keyword",
+          "value": "ThinkPHP 项目 需求"
+        },
+        {
+          "kind": "keyword",
+          "value": "Laravel 报错 求助"
+        }
+      ],
+      "keywords": "php,laravel,thinkphp"
+    },
+    {
+      "name": "Vue · 前后端联调求助",
+      "strategy": "编程求助 · 具体建议与轻表情",
+      "topic": "Vue、Element UI、JavaScript 前端问题，以及Java/PHP项目接口联调",
+      "sources": [
+        {
+          "kind": "keyword",
+          "value": "Vue 项目 求助"
+        },
+        {
+          "kind": "keyword",
+          "value": "Element UI 报错"
+        },
+        {
+          "kind": "tag",
+          "value": "前后端分离"
+        }
+      ],
+      "keywords": "vue,element ui,javascript,前端,接口联调"
+    },
+    {
+      "name": "Python · 脚本与数据分析求助",
+      "strategy": "编程求助 · 具体建议与轻表情",
+      "topic": "Python 脚本、合法数据分析、环境配置和学习调试",
+      "sources": [
+        {
+          "kind": "keyword",
+          "value": "大学生 Python 求助"
+        },
+        {
+          "kind": "keyword",
+          "value": "Python 项目 报错"
+        },
+        {
+          "kind": "tag",
+          "value": "Python学习"
+        }
+      ],
+      "keywords": "python,数据分析,脚本"
+    },
+    {
+      "name": "MySQL · 数据库与SQL求助",
+      "strategy": "编程求助 · 具体建议与轻表情",
+      "topic": "MySQL、SQL、数据库设计、Java或PHP项目数据库连接与查询问题",
+      "sources": [
+        {
+          "kind": "keyword",
+          "value": "MySQL 求助"
+        },
+        {
+          "kind": "keyword",
+          "value": "数据库设计 求助"
+        },
+        {
+          "kind": "keyword",
+          "value": "SQL 报错 求助"
+        }
+      ],
+      "keywords": "mysql,sql,数据库"
+    },
+    {
+      "name": "计算机项目 · 正常开发需求",
+      "strategy": "项目需求 · 先澄清再交流",
+      "topic": "大学生或计算机相关作者主动提出的合法应用开发、项目协作、功能实现、调试和需求梳理",
+      "sources": [
+        {
+          "kind": "keyword",
+          "value": "计算机 项目开发 求助"
+        },
+        {
+          "kind": "keyword",
+          "value": "Java 系统开发 需求"
+        },
+        {
+          "kind": "keyword",
+          "value": "PHP 系统开发 需求"
+        },
+        {
+          "kind": "tag",
+          "value": "计算机专业"
+        }
+      ],
+      "keywords": "java,php,springboot,vue,python,计算机,小程序,系统开发"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+.env
+.env.*
+!.env.example
+# 私有配置、会话与本地数据
+backend/config/*.json
+!backend/config/*.example.json
+backend/data/
+cookies.json
+
+# 依赖、缓存与构建产物
+/frontend/node_modules/
+/frontend/dist/
+/bin/
+/release/
+/.runtime/
+__pycache__/
+*.pyc
+go.work
+go.work.sum
+*.log
+*.exe
+*.test
+*.out
+.DS_Store
+.idea/
+.vscode/

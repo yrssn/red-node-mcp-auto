@@ -1,0 +1,15 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Comment Console (amd64)" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <working_directory value="$PROJECT_DIR$" />
+    <envs>
+      <env name="GOARCH" value="amd64" />
+      <env name="CGO_ENABLED" value="0" />
+    </envs>
+    <kind value="PACKAGE" />
+    <package value="xhs-comment-console/cmd/server" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/cmd/server/main.go" />
+    <parameters value="-port 127.0.0.1:18061 -headless=false" />
+    <method v="2" />
+  </configuration>
+</component>

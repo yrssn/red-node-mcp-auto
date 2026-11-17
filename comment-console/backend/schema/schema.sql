@@ -1,0 +1,8 @@
+-- 请先创建数据库，并在客户端选择该数据库后执行。
+-- v1 使用单行 JSON 快照，revision 防止多个服务静默覆盖数据。
+CREATE TABLE IF NOT EXISTS comment_console_state (
+    id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
+    revision BIGINT UNSIGNED NOT NULL DEFAULT 0,
+    data LONGTEXT NOT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

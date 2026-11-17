@@ -1,0 +1,4 @@
+{
+  "dsn": "YOUR_USER:YOUR_PASSWORD@tcp(host.docker.internal:3666)/xhs_comment_console?charset=utf8mb4",
+  "demo_dsn": "YOUR_USER:YOUR_PASSWORD@tcp(host.docker.internal:3666)/xhs_comment_console_demo?charset=utf8mb4"
+}

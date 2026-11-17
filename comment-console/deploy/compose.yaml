@@ -1,0 +1,81 @@
+name: xhs-comment-console
+
+services:
+  ocr:
+    image: comment-console-ocr:1.0.0
+    platform: linux/amd64
+    build:
+      context: ..
+      dockerfile: ocr/Dockerfile
+    restart: unless-stopped
+    environment:
+      BIND: 0.0.0.0
+      PORT: "18063"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18063/health', timeout=2)"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 90s
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请先在.env中配置MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: xhs_comment_console
+      MYSQL_USER: comment_console
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?请先在.env中配置MYSQL_PASSWORD}
+      TZ: Asia/Shanghai
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql-init.sql:/docker-entrypoint-initdb.d/10-comment-console.sql:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'MYSQL_PWD="$${MYSQL_PASSWORD}" mysql --protocol=TCP -h127.0.0.1 -u"$${MYSQL_USER}" "$${MYSQL_DATABASE}" --batch --skip-column-names -e "SELECT 1" >/dev/null'
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 45s
+  app:
+    image: comment-console:1.0.0
+    platform: linux/amd64
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      args:
+        VERSION: v1.0.0
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      ocr:
+        condition: service_healthy
+        required: false
+    environment:
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_USER: comment_console
+      DB_PASSWORD: ${MYSQL_PASSWORD:?请先在.env中配置MYSQL_PASSWORD}
+      DB_NAME: xhs_comment_console
+      DB_DEMO_NAME: xhs_comment_console_demo
+      CONSOLE_DEMO: ${CONSOLE_DEMO:-false}
+      AUTH_TOKEN: ${AUTH_TOKEN:-}
+      XHS_PROXY: ${XHS_PROXY:-}
+      COOKIES_PATH: /app/backend/data/cookies.json
+      OCR_URL: http://ocr:18063
+      OCR_ENABLED: ${OCR_ENABLED:-true}
+      OCR_ALLOW_FAKE_IP: ${OCR_ALLOW_FAKE_IP:-false}
+    ports:
+      - "${APP_BIND:-127.0.0.1}:${APP_PORT:-18062}:18060"
+    volumes:
+      - session_data:/app/backend/data
+      - image_data:/app/backend/images
+    shm_size: 1gb
+    stop_grace_period: 90s
+
+volumes:
+  mysql_data:
+  session_data:
+  image_data:
