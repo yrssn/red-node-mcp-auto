@@ -67,6 +67,19 @@ func (f fakeBackend) Detail(ctx context.Context, p Post) (Post, error) {
 	return f.DemoBackend.Detail(ctx, p)
 }
 
+func waitTaskRuntimeIdle(t *testing.T, e *Engine, key string) {
+	t.Helper()
+	for deadline := time.Now().Add(3 * time.Second); time.Now().Before(deadline); {
+		state := e.Snapshot()
+		task := findTask(&state, key)
+		if task != nil && !task.Running && !task.Queued && task.Phase != "" && task.Phase != "idle" {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("等待任务 %s 完成本轮超时", key)
+}
+
 func testEngine(t *testing.T, backend Backend) *Engine {
 	t.Helper()
 	state := EmptyState()

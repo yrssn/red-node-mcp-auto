@@ -173,7 +173,7 @@ func (e *Engine) sendLoop() {
 func (e *Engine) runNext() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	if e.stopping || e.ctx.Err() != nil || e.running != "" {
+	if e.stopping || e.ctx.Err() != nil || e.running != "" || e.reanalysis.Active {
 		return
 	}
 	// 同时兼容已经在 pending 中、尚未加入 FIFO 的任务。

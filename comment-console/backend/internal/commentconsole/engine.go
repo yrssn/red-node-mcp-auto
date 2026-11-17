@@ -33,6 +33,7 @@ type Engine struct {
 	lastSend       time.Time
 	ocr            OCRClient
 	reanalysisPost string
+	reanalysis     ReanalysisStatus
 	accountCache   *accountStatusCache
 	queueNotes     map[string]string
 	checkingSend   string
@@ -110,6 +111,7 @@ func (e *Engine) Snapshot() State {
 	s := clone(e.state)
 	s.Demo = e.demo
 	s.Version = Version
+	s.Reanalysis = e.reanalysis
 	for i := range s.Models {
 		s.Models[i].HasKey = s.Models[i].APIKey != ""
 		s.Models[i].APIKey = ""

@@ -103,7 +103,7 @@ func (n *NotificationAction) Reply(ctx context.Context, commentID, content strin
 func (n *NotificationAction) locate(ctx context.Context, page *rod.Page, commentID string) (*rawNotification, int, error) {
 	const maxRounds = 20
 
-	for range maxRounds {
+	for round := 0; round < maxRounds; round++ {
 		payload, err := n.readTab(page, TabMentions)
 		if err != nil {
 			return nil, 0, err

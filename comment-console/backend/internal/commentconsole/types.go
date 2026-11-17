@@ -135,16 +135,17 @@ type Settings struct {
 }
 
 type State struct {
-	Models     []Model    `json:"models"`
-	Strategies []Strategy `json:"strategies"`
-	Materials  []Material `json:"materials"`
-	Tasks      []Task     `json:"tasks"`
-	Posts      []Post     `json:"posts"`
-	Comments   []Comment  `json:"comments"`
-	Logs       []Log      `json:"logs"`
-	Settings   Settings   `json:"settings"`
-	Demo       bool       `json:"demo"`
-	Version    string     `json:"version"`
+	Reanalysis ReanalysisStatus `json:"reanalysis"`
+	Models     []Model          `json:"models"`
+	Strategies []Strategy       `json:"strategies"`
+	Materials  []Material       `json:"materials"`
+	Tasks      []Task           `json:"tasks"`
+	Posts      []Post           `json:"posts"`
+	Comments   []Comment        `json:"comments"`
+	Logs       []Log            `json:"logs"`
+	Settings   Settings         `json:"settings"`
+	Demo       bool             `json:"demo"`
+	Version    string           `json:"version"`
 }
 
 type Account struct {

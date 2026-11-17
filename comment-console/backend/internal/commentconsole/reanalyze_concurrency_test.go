@@ -3,12 +3,66 @@ package commentconsole
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
+
+func TestSubmittedReanalysisSurvivesRequestCancellation(t *testing.T) {
+	e, ocr, _ := reanalyzeConcurrencyEngine(t, false)
+	backend := e.backend.(fakeBackend)
+	detail := backend.detailFn
+	backend.detailFn = func(ctx context.Context, p Post) (Post, error) {
+		if p.ID == "second-post" {
+			p.Title = "已读取第二篇帖子"
+			return p, nil
+		}
+		return detail(ctx, p)
+	}
+	e.backend = backend
+	if err := e.update(func(s *State) error {
+		s.Posts = append(s.Posts, Post{ID: "second-post", TaskID: s.Tasks[0].ID})
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	router := gin.New()
+	e.Register(router.Group("/api/console"))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	req := httptest.NewRequest(http.MethodPost, "/api/console/posts/reanalyze",
+		strings.NewReader(`{"ids":["concurrency-post","second-post"]}`)).WithContext(ctx)
+	req.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("提交返回 %d：%s", recorder.Code, recorder.Body.String())
+	}
+	cancel()
+	select {
+	case <-ocr.entered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("提交后没有开始分析")
+	}
+	ocr.unblock()
+	for deadline := time.Now().Add(3 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+		state := e.Snapshot()
+		if !state.Reanalysis.Active {
+			if state.Reanalysis.Completed != 2 || state.Reanalysis.Failed != 0 || state.Posts[1].Title != "已读取第二篇帖子" {
+				t.Fatalf("请求取消后批次没有完成：%+v", state.Reanalysis)
+			}
+			return
+		}
+	}
+	t.Fatal("批次没有结束")
+}
 
 type reanalyzeBlockingOCR struct {
 	entered chan struct{}

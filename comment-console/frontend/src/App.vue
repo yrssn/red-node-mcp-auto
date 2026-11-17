@@ -444,22 +444,25 @@
                 ></el-option></el-select
               ><span class="muted">{{ filteredPosts.length }} 条帖子</span>
             </div>
-            <div v-if="selectedPosts.length || postBatchProgress" class="bulk-bar">
-              {{ postBatchProgress || "已选择 " + selectedPosts.length + " 条" }}
+            <div v-if="selectedPosts.length || reanalysis.total" class="bulk-bar">
+              {{ selectedPosts.length ? "已选择 " + selectedPosts.length + " 条" : "" }}
               <el-button
+                v-if="selectedPosts.length"
                 size="mini"
-                :disabled="!!bulkBusy || !!reanalyzing"
+                :disabled="!!bulkBusy || reanalysis.active"
                 @click="reanalyzeSelected"
                 >批量分析</el-button
               >
               <el-button
+                v-if="selectedPosts.length"
                 size="mini"
                 type="danger"
                 plain
-                :disabled="!!bulkBusy || !!reanalyzing"
+                :disabled="!!bulkBusy || reanalysis.active"
                 @click="deleteSelected('posts')"
                 >批量删除</el-button
               >
+              <span v-if="reanalysis.total">{{ postBatchProgress }}</span>
             </div>
             <el-table
               ref="postsTable"
@@ -521,7 +524,7 @@
                   <el-button
                     type="text"
                     :loading="reanalyzing === row.id"
-                    :disabled="!!bulkBusy"
+                    :disabled="!!bulkBusy || reanalysis.active"
                     @click.stop="reanalyze(row)"
                     >重新分析</el-button
                   >
@@ -1118,7 +1121,6 @@ export default {
       commentTab: "review",
       selected: [],
       selectedPosts: [],
-      postBatchProgress: "",
       bulkBusy: false,
       loading: false,
       saving: false,
@@ -1139,7 +1141,6 @@ export default {
       detailVisible: false,
       detailPost: null,
       detailComment: null,
-      reanalyzing: "",
       ocrService: null,
       ocrServiceBusy: false,
       settingsForm: { send_paused: true, send_interval: 60 },
@@ -1244,6 +1245,18 @@ export default {
     };
   },
   computed: {
+    reanalysis() {
+      return this.state.reanalysis || {};
+    },
+    reanalyzing() {
+      return this.reanalysis.current || "";
+    },
+    postBatchProgress() {
+      const { active, total, completed, failed, last_error } = this.reanalysis;
+      const status = active ? "分析中" : "分析结束";
+      return status + " · 已处理 " + completed + " / " + total + " 条" +
+        (failed ? "，失败 " + failed + " 条：" + last_error : "");
+    },
     accountPhase() {
       return getAccountPhase(this.account, this.accountBusy);
     },
@@ -1799,17 +1812,19 @@ export default {
       }
       this.saving = false;
     },
-    async reanalyze(post) {
-      if (this.reanalyzing || this.bulkBusy) return;
-      this.reanalyzing = post.id;
+    reanalyze(post) {
+      return this.submitReanalysis([post.id]);
+    },
+    async submitReanalysis(ids) {
+      if (!ids.length || this.bulkBusy || this.reanalysis.active) return;
+      this.bulkBusy = true;
       try {
-        if (await this.mutate("/posts/" + post.id + "/reanalyze")) {
-          this.$message.success(
-            "该帖详情、OCR 和筛选已更新，未生成或发送评论。"
-          );
+        if (await this.mutate("/posts/reanalyze", { ids })) {
+          this.clearTableSelection();
+          this.$message.success("分析已提交，刷新后可继续查看进度");
         }
       } finally {
-        this.reanalyzing = "";
+        this.bulkBusy = false;
       }
     },
     clearTableSelection() {
@@ -1818,38 +1833,11 @@ export default {
       this.selectedPosts = [];
       this.selected = [];
     },
-    async reanalyzeSelected() {
-      if (this.bulkBusy || this.reanalyzing || !this.selectedPosts.length) return;
-      const posts = [...this.selectedPosts];
-      let done = 0;
-      const errors = [];
-      this.bulkBusy = true;
-      try {
-        for (const [index, post] of posts.entries()) {
-          this.postBatchProgress = "正在分析第 " + (index + 1) + " / " + posts.length + " 条";
-          this.reanalyzing = post.id;
-          try {
-            await this.api("/posts/" + encodeURIComponent(post.id) + "/reanalyze", "POST");
-            done++;
-          } catch (e) {
-            errors.push(e.message);
-          }
-        }
-        await this.load(true);
-        this.clearTableSelection();
-        if (errors.length) {
-          this.$message.warning("已处理 " + done + " 条，失败 " + errors.length + " 条：" + errors[0]);
-        } else {
-          this.$message.success("已处理 " + done + " 条候选帖子，识别结果见列表");
-        }
-      } finally {
-        this.bulkBusy = false;
-        this.reanalyzing = "";
-        this.postBatchProgress = "";
-      }
+    reanalyzeSelected() {
+      return this.submitReanalysis(this.selectedPosts.map((post) => post.id));
     },
     async deleteSelected(kind) {
-      if (this.bulkBusy || this.reanalyzing) return;
+      if (this.bulkBusy || (kind === "posts" && this.reanalysis.active)) return;
       const isPosts = kind === "posts";
       const ids = (isPosts ? this.selectedPosts : this.selected).map((row) => row.id);
       if (!ids.length) return;

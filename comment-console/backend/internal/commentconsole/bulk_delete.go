@@ -15,7 +15,7 @@ func (e *Engine) DeletePosts(ids []string) (deleted, protected int, err error) {
 		selected[id] = true
 	}
 	err = e.update(func(s *State) error {
-		if e.running != "" || len(e.taskRuns) > 0 {
+		if e.running != "" || len(e.taskRuns) > 0 || e.reanalysis.Active {
 			return fmt.Errorf("候选帖子正在处理，请等待本轮结束再删除")
 		}
 		linked := make(map[string]bool)
